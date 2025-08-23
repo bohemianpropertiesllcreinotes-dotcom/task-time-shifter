@@ -52,6 +52,14 @@ export default {
 					DEFAULT: 'hsl(var(--card))',
 					foreground: 'hsl(var(--card-foreground))'
 				},
+				task: {
+					primary: 'hsl(var(--task-primary))',
+					secondary: 'hsl(var(--task-secondary))',
+					success: 'hsl(var(--task-success))',
+					warning: 'hsl(var(--task-warning))'
+				},
+				'time-slot': 'hsl(var(--time-slot))',
+				obligation: 'hsl(var(--obligation))',
 				sidebar: {
 					DEFAULT: 'hsl(var(--sidebar-background))',
 					foreground: 'hsl(var(--sidebar-foreground))',
@@ -67,6 +75,11 @@ export default {
 				lg: 'var(--radius)',
 				md: 'calc(var(--radius) - 2px)',
 				sm: 'calc(var(--radius) - 4px)'
+			},
+			backgroundImage: {
+				'gradient-primary': 'var(--gradient-primary)',
+				'gradient-subtle': 'var(--gradient-subtle)',
+				'gradient-card': 'var(--gradient-card)'
 			},
 			keyframes: {
 				'accordion-down': {
