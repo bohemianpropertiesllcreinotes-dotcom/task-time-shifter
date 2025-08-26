@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TaskBreakdown } from "@/components/TaskBreakdown";
 import { ScheduleView } from "@/components/ScheduleView";
@@ -6,47 +5,30 @@ import { AutoScheduler } from "@/components/AutoScheduler";
 import { FocusMode } from "@/components/FocusMode";
 import { WeeklyReview } from "@/components/WeeklyReview";
 import { Calendar, ListTodo, Brain, Zap, Target, BarChart3 } from "lucide-react";
-import { Task, TimeSlot, ScheduledSlot } from "@/types/scheduler";
+import { useScheduleStore } from "@/hooks/useScheduleStore";
 
 const Index = () => {
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [scheduledSlots, setScheduledSlots] = useState<ScheduledSlot[]>([]);
+  const {
+    tasks,
+    setTasks,
+    scheduledSlots,
+    setScheduledSlots,
+    obligations,
+    generateAvailableSlots,
+    updateTask,
+    addObligation,
+    removeObligation
+  } = useScheduleStore();
 
-  const handleTasksChange = (updatedTasks: Task[]) => {
+  const handleTasksChange = (updatedTasks: typeof tasks) => {
     setTasks(updatedTasks);
   };
 
-  const handleTaskUpdate = (taskId: string, subtaskId: string, completed: boolean, actualMinutes?: number) => {
-    const updatedTasks = tasks.map(task => 
-      task.id === taskId 
-        ? {
-            ...task,
-            subtasks: task.subtasks.map(subtask =>
-              subtask.id === subtaskId 
-                ? { 
-                    ...subtask, 
-                    completed,
-                    actualMinutes,
-                    completedAt: completed ? new Date() : undefined
-                  }
-                : subtask
-            )
-          }
-        : task
-    );
-    setTasks(updatedTasks);
-  };
-
-  const handleScheduleCreated = (slots: ScheduledSlot[]) => {
+  const handleScheduleCreated = (slots: typeof scheduledSlots) => {
     setScheduledSlots(slots);
   };
 
-  // Mock available time slots for the scheduler
-  const mockAvailableSlots: TimeSlot[] = [
-    { start: "07:00", end: "09:00", duration: 120, available: true, energyLevel: "high" },
-    { start: "18:00", end: "19:00", duration: 60, available: true, energyLevel: "medium" },
-    { start: "20:00", end: "22:00", duration: 120, available: true, energyLevel: "low" },
-  ];
+  const availableSlots = generateAvailableSlots("today");
   return (
     <div className="min-h-screen bg-gradient-subtle">
       {/* Header */}
@@ -104,27 +86,32 @@ const Index = () => {
           </TabsList>
 
           <TabsContent value="tasks">
-            <TaskBreakdown onTasksChange={handleTasksChange} />
+            <TaskBreakdown tasks={tasks} onTasksChange={handleTasksChange} />
           </TabsContent>
 
-          <TabsContent value="schedule">
-            <ScheduleView />
-          </TabsContent>
-
-          <TabsContent value="auto-schedule">
-            <AutoScheduler 
-              tasks={tasks}
-              availableSlots={mockAvailableSlots}
-              onScheduleCreated={handleScheduleCreated}
-            />
-          </TabsContent>
-
-          <TabsContent value="focus">
-            <FocusMode 
-              tasks={tasks}
-              onTaskUpdate={handleTaskUpdate}
-            />
-          </TabsContent>
+        <TabsContent value="schedule">
+          <ScheduleView 
+            obligations={obligations}
+            onAddObligation={addObligation}
+            onRemoveObligation={removeObligation}
+            scheduledSlots={scheduledSlots}
+          />
+        </TabsContent>
+        
+        <TabsContent value="auto-schedule">
+          <AutoScheduler 
+            tasks={tasks}
+            availableSlots={availableSlots}
+            onScheduleCreated={handleScheduleCreated}
+          />
+        </TabsContent>
+        
+        <TabsContent value="focus">
+          <FocusMode 
+            tasks={tasks}
+            onTaskUpdate={updateTask}
+          />
+        </TabsContent>
 
           <TabsContent value="insights">
             <WeeklyReview tasks={tasks} />

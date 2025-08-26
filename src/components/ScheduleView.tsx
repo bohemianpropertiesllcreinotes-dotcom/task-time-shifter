@@ -3,29 +3,30 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, Clock, Plus, X } from "lucide-react";
-
-interface Obligation {
-  id: string;
-  title: string;
-  startTime: string;
-  endTime: string;
-  type: "work" | "personal" | "appointment";
-}
+import { Calendar, Clock, Plus, X, CheckCircle } from "lucide-react";
+import { Obligation, ScheduledSlot } from "@/types/scheduler";
 
 interface TimeSlot {
   start: string;
   end: string;
   duration: number;
   available: boolean;
+  energyLevel?: string;
 }
 
-export const ScheduleView = () => {
-  const [obligations, setObligations] = useState<Obligation[]>([
-    { id: "1", title: "Morning Meeting", startTime: "09:00", endTime: "10:00", type: "work" },
-    { id: "2", title: "Lunch Break", startTime: "12:00", endTime: "13:00", type: "personal" },
-    { id: "3", title: "Doctor Appointment", startTime: "15:30", endTime: "16:30", type: "appointment" },
-  ]);
+interface ScheduleViewProps {
+  obligations: Obligation[];
+  onAddObligation: (obligation: Omit<Obligation, 'id'>) => void;
+  onRemoveObligation: (id: string) => void;
+  scheduledSlots: ScheduledSlot[];
+}
+
+export const ScheduleView = ({ 
+  obligations, 
+  onAddObligation, 
+  onRemoveObligation, 
+  scheduledSlots 
+}: ScheduleViewProps) => {
   
   const [showForm, setShowForm] = useState(false);
   const [newObligation, setNewObligation] = useState({
@@ -111,18 +112,13 @@ export const ScheduleView = () => {
   const addObligation = () => {
     if (!newObligation.title || !newObligation.startTime || !newObligation.endTime) return;
     
-    const obligation: Obligation = {
-      id: Date.now().toString(),
-      ...newObligation
-    };
-    
-    setObligations([...obligations, obligation]);
+    onAddObligation(newObligation);
     setNewObligation({ title: "", startTime: "", endTime: "", type: "personal" });
     setShowForm(false);
   };
 
   const removeObligation = (id: string) => {
-    setObligations(obligations.filter(o => o.id !== id));
+    onRemoveObligation(id);
   };
 
   const getTypeColor = (type: Obligation["type"]) => {
@@ -216,30 +212,53 @@ export const ScheduleView = () => {
             Today's Timeline
           </h3>
           <div className="space-y-2">
-            {timeSlots.map((slot, index) => (
-              <div
-                key={index}
-                className={`p-3 rounded-lg border-l-4 ${
-                  slot.available 
-                    ? "bg-time-slot border-l-task-success" 
-                    : "bg-muted border-l-muted-foreground"
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <span className="font-medium">
-                    {slot.start} - {slot.end}
-                  </span>
-                  <Badge variant={slot.available ? "default" : "secondary"}>
-                    {slot.duration}min
-                  </Badge>
+            {timeSlots.map((slot, index) => {
+              // Check if there's a scheduled task in this slot
+              const scheduledTask = scheduledSlots.find(scheduled => 
+                scheduled.startTime === slot.start && scheduled.endTime === slot.end
+              );
+              
+              return (
+                <div
+                  key={index}
+                  className={`p-3 rounded-lg border-l-4 ${
+                    scheduledTask
+                      ? "bg-task-primary/10 border-l-task-primary"
+                      : slot.available 
+                        ? "bg-time-slot border-l-task-success" 
+                        : "bg-muted border-l-muted-foreground"
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="font-medium">
+                      {slot.start} - {slot.end}
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <Badge variant={slot.available ? "default" : "secondary"}>
+                        {slot.duration}min
+                      </Badge>
+                      {slot.energyLevel && (
+                        <Badge variant="outline" className="text-xs">
+                          {slot.energyLevel} energy
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                  {scheduledTask ? (
+                    <div className="flex items-center gap-2 mt-1">
+                      <CheckCircle className="h-4 w-4 text-task-primary" />
+                      <p className="text-sm text-task-primary font-medium">
+                        Scheduled Task ({scheduledTask.location})
+                      </p>
+                    </div>
+                  ) : slot.available ? (
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Available for tasks
+                    </p>
+                  ) : null}
                 </div>
-                {slot.available && (
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Available for tasks
-                  </p>
-                )}
-              </div>
-            ))}
+              );
+            })}
           </div>
         </Card>
 

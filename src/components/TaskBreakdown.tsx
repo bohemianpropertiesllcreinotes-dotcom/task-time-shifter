@@ -1,172 +1,152 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Clock, CheckCircle, Circle, Zap, MapPin, Save } from "lucide-react";
-import { Task, Subtask, EnergyLevel, TaskLocation, TaskComplexity, TaskTemplate } from "@/types/scheduler";
+import { Progress } from "@/components/ui/progress";
+import { Separator } from "@/components/ui/separator";
+import { 
+  Plus, 
+  Clock, 
+  MapPin, 
+  Zap, 
+  CheckCircle2, 
+  Circle,
+  Trash2,
+  Edit3,
+  RotateCcw,
+  File,
+  Save
+} from "lucide-react";
+import { Task, Subtask, EnergyLevel, TaskLocation, TaskComplexity } from "@/types/scheduler";
+import { TASK_TEMPLATES, getTaskTemplate } from "@/data/taskTemplates";
 
 interface TaskBreakdownProps {
-  onTasksChange?: (tasks: Task[]) => void;
+  tasks?: Task[];
+  onTasksChange: (tasks: Task[]) => void;
 }
 
-export const TaskBreakdown = ({ onTasksChange }: TaskBreakdownProps) => {
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [templates, setTemplates] = useState<TaskTemplate[]>([
-    {
-      id: "clean-kitchen",
-      name: "Kitchen Deep Clean",
-      description: "Complete kitchen cleaning routine",
-      subtasks: [
-        { title: "Clear and wipe counters", estimatedMinutes: 10, energyLevel: "medium", location: "kitchen" },
-        { title: "Load/run dishwasher", estimatedMinutes: 5, energyLevel: "low", location: "kitchen" },
-        { title: "Clean stovetop and oven", estimatedMinutes: 15, energyLevel: "high", location: "kitchen" },
-        { title: "Sweep and mop floor", estimatedMinutes: 15, energyLevel: "medium", location: "kitchen" },
-        { title: "Organize cabinets", estimatedMinutes: 20, energyLevel: "low", location: "kitchen" }
-      ],
-      energyLevel: "medium",
-      location: "kitchen",
-      complexity: "moderate"
-    },
-    {
-      id: "exercise-routine",
-      name: "Complete Workout",
-      description: "Full exercise session with warm-up and cool-down",
-      subtasks: [
-        { title: "Change into workout clothes", estimatedMinutes: 5, energyLevel: "low", location: "bedroom" },
-        { title: "10-minute warm-up", estimatedMinutes: 10, energyLevel: "medium", location: "any" },
-        { title: "Main workout routine", estimatedMinutes: 30, energyLevel: "high", location: "any" },
-        { title: "Cool down and stretch", estimatedMinutes: 10, energyLevel: "low", location: "any" },
-        { title: "Shower and change", estimatedMinutes: 15, energyLevel: "low", location: "bathroom" }
-      ],
-      energyLevel: "high",
-      location: "any",
-      complexity: "moderate"
-    }
-  ]);
-  const [newTaskTitle, setNewTaskTitle] = useState("");
-  const [newTaskDescription, setNewTaskDescription] = useState("");
-  const [newTaskEnergyLevel, setNewTaskEnergyLevel] = useState<EnergyLevel>("medium");
-  const [newTaskLocation, setNewTaskLocation] = useState<TaskLocation>("any");
-  const [selectedTemplate, setSelectedTemplate] = useState<string>("");
+export const TaskBreakdown = ({ tasks: propTasks = [], onTasksChange }: TaskBreakdownProps) => {
+  const [tasks, setTasks] = useState<Task[]>(propTasks);
   const [showForm, setShowForm] = useState(false);
+  const [showTemplates, setShowTemplates] = useState(false);
+  const [newTask, setNewTask] = useState({
+    title: "",
+    description: "",
+    energyLevel: "medium" as EnergyLevel,
+    location: "any" as TaskLocation,
+    complexity: "simple" as TaskComplexity
+  });
 
-  const generateSubtasks = (title: string, description: string, location: TaskLocation, energyLevel: EnergyLevel): Subtask[] => {
-    // Smart subtask generation based on common task patterns
+  // Update tasks when propTasks changes
+  useEffect(() => {
+    setTasks(propTasks);
+  }, [propTasks]);
+
+  const generateSubtasks = (title: string, complexity: TaskComplexity, location: TaskLocation): Subtask[] => {
     const taskLower = title.toLowerCase();
     let subtasks: Subtask[] = [];
 
+    // Check for existing templates first
     if (taskLower.includes("clean kitchen")) {
-      subtasks = [
-        { id: "1", title: "Clear and wipe counters", estimatedMinutes: 10, completed: false, energyLevel: "medium", location: "kitchen" },
-        { id: "2", title: "Load/run dishwasher", estimatedMinutes: 5, completed: false, energyLevel: "low", location: "kitchen" },
-        { id: "3", title: "Clean stovetop", estimatedMinutes: 10, completed: false, energyLevel: "high", location: "kitchen" },
-        { id: "4", title: "Sweep and mop floor", estimatedMinutes: 15, completed: false, energyLevel: "medium", location: "kitchen" },
-      ];
-    } else if (taskLower.includes("clean bathroom")) {
-      subtasks = [
-        { id: "1", title: "Clear surfaces and counter", estimatedMinutes: 5, completed: false, energyLevel: "low", location: "bathroom" },
-        { id: "2", title: "Clean toilet", estimatedMinutes: 10, completed: false, energyLevel: "medium", location: "bathroom" },
-        { id: "3", title: "Clean shower/tub", estimatedMinutes: 15, completed: false, energyLevel: "high", location: "bathroom" },
-        { id: "4", title: "Mop floor", estimatedMinutes: 10, completed: false, energyLevel: "medium", location: "bathroom" },
-      ];
-    } else if (taskLower.includes("clean storage")) {
-      subtasks = [
-        { id: "1", title: "Sort items by category", estimatedMinutes: 20, completed: false, energyLevel: "medium", location: "storage" },
-        { id: "2", title: "Donate/discard unused items", estimatedMinutes: 15, completed: false, energyLevel: "low", location: "storage" },
-        { id: "3", title: "Organize remaining items", estimatedMinutes: 25, completed: false, energyLevel: "medium", location: "storage" },
-        { id: "4", title: "Label containers/shelves", estimatedMinutes: 10, completed: false, energyLevel: "low", location: "storage" },
-      ];
-    } else if (taskLower.includes("exercise") || taskLower.includes("workout")) {
-      subtasks = [
-        { id: "1", title: "Change into workout clothes", estimatedMinutes: 5, completed: false, energyLevel: "low", location: "bedroom" },
-        { id: "2", title: "5-minute warm-up", estimatedMinutes: 5, completed: false, energyLevel: "medium", location },
-        { id: "3", title: "Main workout routine", estimatedMinutes: 25, completed: false, energyLevel: "high", location },
-        { id: "4", title: "Cool down and stretch", estimatedMinutes: 10, completed: false, energyLevel: "low", location },
-      ];
-    } else if (taskLower.includes("study") || taskLower.includes("learn") || taskLower.includes("assignment")) {
-      subtasks = [
-        { id: "1", title: "Review previous material", estimatedMinutes: 10, completed: false, energyLevel: "medium", location: "office" },
-        { id: "2", title: "Read new chapter/material", estimatedMinutes: 20, completed: false, energyLevel: "high", location: "office" },
-        { id: "3", title: "Take notes on key points", estimatedMinutes: 15, completed: false, energyLevel: "medium", location: "office" },
-        { id: "4", title: "Practice problems/review", estimatedMinutes: 15, completed: false, energyLevel: "high", location: "office" },
-      ];
-    } else if (taskLower.includes("meal prep")) {
-      subtasks = [
-        { id: "1", title: "Plan meals for the week", estimatedMinutes: 15, completed: false, energyLevel: "medium", location: "kitchen" },
-        { id: "2", title: "Prep vegetables and ingredients", estimatedMinutes: 20, completed: false, energyLevel: "medium", location: "kitchen" },
-        { id: "3", title: "Cook base proteins/grains", estimatedMinutes: 30, completed: false, energyLevel: "high", location: "kitchen" },
-        { id: "4", title: "Portion and store meals", estimatedMinutes: 15, completed: false, energyLevel: "low", location: "kitchen" },
-      ];
-    } else {
-      // Generic breakdown
-      subtasks = [
-        { id: "1", title: "Plan and prepare", estimatedMinutes: 10, completed: false, energyLevel: "medium", location },
-        { id: "2", title: "Start main work", estimatedMinutes: 20, completed: false, energyLevel, location },
-        { id: "3", title: "Complete and review", estimatedMinutes: 10, completed: false, energyLevel: "low", location },
-      ];
+      const template = getTaskTemplate("clean-kitchen");
+      if (template) {
+        return template.subtasks.map((subtask, index) => ({
+          ...subtask,
+          id: `${Date.now()}-${index}`,
+          completed: false
+        }));
+      }
     }
 
-    return subtasks;
+    // Generic breakdown based on complexity
+    const baseSubtasks = [
+      { title: "Plan and prepare", minutes: 10, energy: "medium" as EnergyLevel },
+      { title: "Start main work", minutes: 20, energy: "high" as EnergyLevel },
+      { title: "Complete and review", minutes: 10, energy: "low" as EnergyLevel },
+    ];
+
+    if (complexity === "complex") {
+      baseSubtasks.splice(1, 1, 
+        { title: "First phase", minutes: 25, energy: "high" as EnergyLevel },
+        { title: "Second phase", minutes: 30, energy: "medium" as EnergyLevel },
+        { title: "Final phase", minutes: 15, energy: "low" as EnergyLevel }
+      );
+    } else if (complexity === "moderate") {
+      baseSubtasks[1] = { title: "Main work phase", minutes: 30, energy: "medium" as EnergyLevel };
+    }
+
+    return baseSubtasks.map((subtask, index) => ({
+      id: `${Date.now()}-${index}`,
+      title: subtask.title,
+      estimatedMinutes: subtask.minutes,
+      completed: false,
+      energyLevel: subtask.energy,
+      location: location
+    }));
+  };
+
+  const addTask = () => {
+    if (!newTask.title.trim()) return;
+
+    const subtasks: Subtask[] = generateSubtasks(newTask.title, newTask.complexity, newTask.location);
+    
+    const task: Task = {
+      id: Date.now().toString(),
+      title: newTask.title,
+      description: newTask.description,
+      subtasks,
+      energyLevel: newTask.energyLevel,
+      location: newTask.location,
+      complexity: newTask.complexity,
+      totalEstimatedMinutes: subtasks.reduce((total, sub) => total + sub.estimatedMinutes, 0),
+      isRecurring: false,
+      streak: 0,
+      template: false
+    };
+
+    const updatedTasks = [...tasks, task];
+    setTasks(updatedTasks);
+    onTasksChange(updatedTasks);
+    setNewTask({
+      title: "",
+      description: "",
+      energyLevel: "medium",
+      location: "any",
+      complexity: "simple"
+    });
+    setShowForm(false);
   };
 
   const addTaskFromTemplate = (templateId: string) => {
-    const template = templates.find(t => t.id === templateId);
+    const template = getTaskTemplate(templateId);
     if (!template) return;
 
     const subtasks: Subtask[] = template.subtasks.map((subtask, index) => ({
-      id: (index + 1).toString(),
-      title: subtask.title,
-      estimatedMinutes: subtask.estimatedMinutes,
-      completed: false,
-      energyLevel: subtask.energyLevel,
-      location: subtask.location
+      ...subtask,
+      id: `${Date.now()}-${index}`,
+      completed: false
     }));
 
-    const newTask: Task = {
+    const task: Task = {
       id: Date.now().toString(),
       title: template.name,
       description: template.description,
       subtasks,
       energyLevel: template.energyLevel,
-      location: template.location,
+      location: template.location,        
       complexity: template.complexity,
-      totalEstimatedMinutes: subtasks.reduce((total, s) => total + s.estimatedMinutes, 0)
+      totalEstimatedMinutes: subtasks.reduce((total, sub) => total + sub.estimatedMinutes, 0),
+      isRecurring: false,
+      streak: 0,
+      template: true
     };
 
-    const updatedTasks = [...tasks, newTask];
+    const updatedTasks = [...tasks, task];
     setTasks(updatedTasks);
-    onTasksChange?.(updatedTasks);
-    setSelectedTemplate("");
-  };
-
-  const addTask = () => {
-    if (!newTaskTitle.trim()) return;
-
-    const subtasks = generateSubtasks(newTaskTitle, newTaskDescription, newTaskLocation, newTaskEnergyLevel);
-    const complexity: TaskComplexity = subtasks.length > 4 ? "complex" : subtasks.length > 2 ? "moderate" : "simple";
-
-    const newTask: Task = {
-      id: Date.now().toString(),
-      title: newTaskTitle,
-      description: newTaskDescription,
-      subtasks,
-      energyLevel: newTaskEnergyLevel,
-      location: newTaskLocation,
-      complexity,
-      totalEstimatedMinutes: subtasks.reduce((total, s) => total + s.estimatedMinutes, 0)
-    };
-
-    const updatedTasks = [...tasks, newTask];
-    setTasks(updatedTasks);
-    onTasksChange?.(updatedTasks);
-    setNewTaskTitle("");
-    setNewTaskDescription("");
-    setNewTaskEnergyLevel("medium");
-    setNewTaskLocation("any");
-    setShowForm(false);
+    onTasksChange(updatedTasks);
+    setShowTemplates(false);
   };
 
   const toggleSubtask = (taskId: string, subtaskId: string) => {
@@ -183,27 +163,20 @@ export const TaskBreakdown = ({ onTasksChange }: TaskBreakdownProps) => {
         : task
     );
     setTasks(updatedTasks);
-    onTasksChange?.(updatedTasks);
+    onTasksChange(updatedTasks);
   };
 
-  const saveAsTemplate = (task: Task) => {
-    const template: TaskTemplate = {
-      id: `template-${Date.now()}`,
-      name: `${task.title} Template`,
-      description: task.description,
-      subtasks: task.subtasks.map(({ id, completed, actualMinutes, startedAt, completedAt, ...rest }) => rest),
-      energyLevel: task.energyLevel,
-      location: task.location,
-      complexity: task.complexity
-    };
-    setTemplates([...templates, template]);
+  const deleteTask = (taskId: string) => {
+    const updatedTasks = tasks.filter(task => task.id !== taskId);
+    setTasks(updatedTasks);
+    onTasksChange(updatedTasks);
   };
 
   const getEnergyLevelColor = (level: EnergyLevel) => {
     switch (level) {
-      case "high": return "text-red-500";
-      case "medium": return "text-yellow-500";
-      case "low": return "text-green-500";
+      case "high": return "text-task-warning";
+      case "medium": return "text-task-secondary";
+      case "low": return "text-task-success";
     }
   };
 
@@ -215,12 +188,13 @@ export const TaskBreakdown = ({ onTasksChange }: TaskBreakdownProps) => {
     }
   };
 
-  const getTotalTime = (task: Task) => {
-    return task.subtasks.reduce((total, subtask) => total + subtask.estimatedMinutes, 0);
-  };
-
   const getCompletedCount = (task: Task) => {
     return task.subtasks.filter(subtask => subtask.completed).length;
+  };
+
+  const getProgressPercentage = (task: Task) => {
+    const completed = getCompletedCount(task);
+    return Math.round((completed / task.subtasks.length) * 100);
   };
 
   return (
@@ -230,97 +204,123 @@ export const TaskBreakdown = ({ onTasksChange }: TaskBreakdownProps) => {
           <h2 className="text-2xl font-bold bg-gradient-primary bg-clip-text text-transparent">
             Task Breakdown
           </h2>
-          <p className="text-muted-foreground">Break large tasks into manageable pieces</p>
+          <p className="text-muted-foreground">
+            Break down large tasks into manageable subtasks
+          </p>
         </div>
-        <Button 
-          onClick={() => setShowForm(!showForm)}
-          className="bg-task-primary hover:bg-task-secondary"
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Add Task
-        </Button>
+        <div className="flex gap-2">
+          <Button 
+            onClick={() => setShowTemplates(!showTemplates)}
+            variant="outline"
+            className="border-task-primary text-task-primary hover:bg-task-primary hover:text-white"
+          >
+            <File className="h-4 w-4 mr-2" />
+            Templates
+          </Button>
+          <Button 
+            onClick={() => setShowForm(!showForm)}
+            className="bg-task-primary hover:bg-task-secondary"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Add Task
+          </Button>
+        </div>
       </div>
+
+      {showTemplates && (
+        <Card className="p-6 bg-gradient-card">
+          <h3 className="text-lg font-semibold mb-4">Choose from Templates</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
+            {TASK_TEMPLATES.map((template) => (
+              <div
+                key={template.id}
+                className="p-4 border rounded-lg hover:border-task-primary transition-colors cursor-pointer bg-background/50"
+                onClick={() => addTaskFromTemplate(template.id)}
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="font-medium">{template.name}</h4>
+                  <Badge variant="outline">{template.location}</Badge>
+                </div>
+                <p className="text-sm text-muted-foreground mb-2">{template.description}</p>
+                <div className="flex items-center gap-2 text-xs">
+                  <Badge variant="secondary" className="text-xs">
+                    <span className={getEnergyLevelColor(template.energyLevel)}>
+                      {getEnergyLevelIcon(template.energyLevel)}
+                    </span>
+                    {template.energyLevel}
+                  </Badge>
+                  <Badge variant="secondary">{template.complexity}</Badge>
+                  <span className="text-muted-foreground">{template.subtasks.length} steps</span>
+                </div>
+              </div>
+            ))}
+          </div>
+          <Button variant="outline" onClick={() => setShowTemplates(false)}>
+            Cancel
+          </Button>
+        </Card>
+      )}
 
       {showForm && (
         <Card className="p-6 bg-gradient-card">
           <div className="space-y-4">
-            <div className="flex gap-4">
-              <div className="flex-1">
-                <label className="text-sm font-medium mb-2 block">Quick Templates</label>
-                <Select value={selectedTemplate} onValueChange={setSelectedTemplate}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Choose a template or create custom..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {templates.map(template => (
-                      <SelectItem key={template.id} value={template.id}>
-                        {template.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+            <Input
+              placeholder="Task title (e.g., Clean kitchen, Study for exam)"
+              value={newTask.title}
+              onChange={(e) => setNewTask({ ...newTask, title: e.target.value })}
+            />
+            <Textarea
+              placeholder="Task description (optional)"
+              value={newTask.description}
+              onChange={(e) => setNewTask({ ...newTask, description: e.target.value })}
+            />
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="text-sm font-medium mb-2 block">Energy Level</label>
+                <select
+                  value={newTask.energyLevel}
+                  onChange={(e) => setNewTask({ ...newTask, energyLevel: e.target.value as EnergyLevel })}
+                  className="w-full p-2 border rounded-md bg-background"
+                >
+                  <option value="low">🌙 Low Energy</option>
+                  <option value="medium">🔥 Medium Energy</option>
+                  <option value="high">⚡ High Energy</option>
+                </select>
               </div>
-              {selectedTemplate && (
-                <Button onClick={() => addTaskFromTemplate(selectedTemplate)} className="mt-6 bg-task-success hover:opacity-90">
-                  Use Template
-                </Button>
-              )}
-            </div>
-            
-            <div className="border-t pt-4">
-              <Input
-                placeholder="What's the main task? (e.g., Clean kitchen, Exercise, Study for exam)"
-                value={newTaskTitle}
-                onChange={(e) => setNewTaskTitle(e.target.value)}
-                className="text-lg mb-4"
-              />
-              <Textarea
-                placeholder="Any additional details about this task..."
-                value={newTaskDescription}
-                onChange={(e) => setNewTaskDescription(e.target.value)}
-                rows={3}
-                className="mb-4"
-              />
-              
-              <div className="grid grid-cols-2 gap-4 mb-4">
-                <div>
-                  <label className="text-sm font-medium mb-2 block">Energy Level Required</label>
-                  <Select value={newTaskEnergyLevel} onValueChange={(value: EnergyLevel) => setNewTaskEnergyLevel(value)}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="low">🌙 Low Energy</SelectItem>
-                      <SelectItem value="medium">🔥 Medium Energy</SelectItem>
-                      <SelectItem value="high">⚡ High Energy</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <label className="text-sm font-medium mb-2 block">Location</label>
-                  <Select value={newTaskLocation} onValueChange={(value: TaskLocation) => setNewTaskLocation(value)}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="kitchen">🍳 Kitchen</SelectItem>
-                      <SelectItem value="bathroom">🚿 Bathroom</SelectItem>
-                      <SelectItem value="bedroom">🛏️ Bedroom</SelectItem>
-                      <SelectItem value="living-room">🛋️ Living Room</SelectItem>
-                      <SelectItem value="car">🚗 Car</SelectItem>
-                      <SelectItem value="garage">🏠 Garage</SelectItem>
-                      <SelectItem value="storage">📦 Storage</SelectItem>
-                      <SelectItem value="office">💻 Office</SelectItem>
-                      <SelectItem value="any">📍 Any Location</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+              <div>
+                <label className="text-sm font-medium mb-2 block">Location</label>
+                <select
+                  value={newTask.location}
+                  onChange={(e) => setNewTask({ ...newTask, location: e.target.value as TaskLocation })}
+                  className="w-full p-2 border rounded-md bg-background"
+                >
+                  <option value="any">Any Location</option>
+                  <option value="kitchen">Kitchen</option>
+                  <option value="bathroom">Bathroom</option>
+                  <option value="bedroom">Bedroom</option>
+                  <option value="living-room">Living Room</option>
+                  <option value="car">Car</option>
+                  <option value="garage">Garage</option>
+                  <option value="storage">Storage</option>
+                  <option value="office">Office</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-sm font-medium mb-2 block">Complexity</label>
+                <select
+                  value={newTask.complexity}
+                  onChange={(e) => setNewTask({ ...newTask, complexity: e.target.value as TaskComplexity })}
+                  className="w-full p-2 border rounded-md bg-background"
+                >
+                  <option value="simple">Simple</option>
+                  <option value="moderate">Moderate</option>
+                  <option value="complex">Complex</option>
+                </select>
               </div>
             </div>
-            
             <div className="flex gap-2">
               <Button onClick={addTask} className="bg-task-primary hover:bg-task-secondary">
-                Create Task
+                Add Task
               </Button>
               <Button variant="outline" onClick={() => setShowForm(false)}>
                 Cancel
@@ -357,27 +357,34 @@ export const TaskBreakdown = ({ onTasksChange }: TaskBreakdownProps) => {
                   </div>
                 </div>
                 <div className="flex gap-2">
+                  <Badge variant="outline" className="border-task-primary text-task-primary">
+                    <Clock className="h-3 w-3 mr-1" />
+                    {task.totalEstimatedMinutes}min
+                  </Badge>
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => saveAsTemplate(task)}
-                    className="text-xs"
+                    onClick={() => deleteTask(task.id)}
+                    className="text-destructive hover:text-destructive"
                   >
-                    <Save className="h-3 w-3 mr-1" />
-                    Save Template
+                    <Trash2 className="h-4 w-4" />
                   </Button>
-                  <Badge variant="outline" className="border-task-primary text-task-primary">
-                    <Clock className="h-3 w-3 mr-1" />
-                    {getTotalTime(task)}min
-                  </Badge>
-                  <Badge 
-                    variant={getCompletedCount(task) === task.subtasks.length ? "default" : "secondary"}
-                    className={getCompletedCount(task) === task.subtasks.length ? "bg-task-success" : ""}
-                  >
-                    {getCompletedCount(task)}/{task.subtasks.length}
-                  </Badge>
                 </div>
               </div>
+
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium">
+                    Progress: {getCompletedCount(task)}/{task.subtasks.length}
+                  </span>
+                  <span className="text-sm text-muted-foreground">
+                    {getProgressPercentage(task)}%
+                  </span>
+                </div>
+                <Progress value={getProgressPercentage(task)} className="h-2" />
+              </div>
+
+              <Separator />
 
               <div className="space-y-2">
                 {task.subtasks.map((subtask) => (
@@ -390,15 +397,17 @@ export const TaskBreakdown = ({ onTasksChange }: TaskBreakdownProps) => {
                       className="text-task-primary hover:text-task-secondary transition-colors"
                     >
                       {subtask.completed ? (
-                        <CheckCircle className="h-5 w-5" />
+                        <CheckCircle2 className="h-5 w-5" />
                       ) : (
                         <Circle className="h-5 w-5" />
                       )}
                     </button>
-                    <span className={subtask.completed ? "line-through text-muted-foreground" : ""}>
-                      {subtask.title}
-                    </span>
-                    <div className="ml-auto flex items-center gap-2">
+                    <div className="flex-1">
+                      <span className={subtask.completed ? "line-through text-muted-foreground" : ""}>
+                        {subtask.title}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
                       <Badge variant="outline" className="text-xs">
                         <span className={getEnergyLevelColor(subtask.energyLevel)}>
                           {getEnergyLevelIcon(subtask.energyLevel)}
@@ -426,6 +435,13 @@ export const TaskBreakdown = ({ onTasksChange }: TaskBreakdownProps) => {
             <p className="text-muted-foreground">
               Add your first task to break it down into manageable pieces
             </p>
+            <Button 
+              onClick={() => setShowForm(true)}
+              className="bg-task-primary hover:bg-task-secondary"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Add Your First Task
+            </Button>
           </div>
         </Card>
       )}
