@@ -4,28 +4,22 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Calendar, Clock, Plus, X, CheckCircle } from "lucide-react";
-import { Obligation, ScheduledSlot } from "@/types/scheduler";
-
-interface TimeSlot {
-  start: string;
-  end: string;
-  duration: number;
-  available: boolean;
-  energyLevel?: string;
-}
+import { Obligation, ScheduledSlot, TimeSlot } from "@/types/scheduler";
 
 interface ScheduleViewProps {
   obligations: Obligation[];
   onAddObligation: (obligation: Omit<Obligation, 'id'>) => void;
   onRemoveObligation: (id: string) => void;
   scheduledSlots: ScheduledSlot[];
+  availableSlots: TimeSlot[];
 }
 
 export const ScheduleView = ({ 
   obligations, 
   onAddObligation, 
   onRemoveObligation, 
-  scheduledSlots 
+  scheduledSlots,
+  availableSlots
 }: ScheduleViewProps) => {
   
   const [showForm, setShowForm] = useState(false);
@@ -36,64 +30,36 @@ export const ScheduleView = ({
     type: "personal" as Obligation["type"]
   });
 
-  const generateTimeSlots = (): TimeSlot[] => {
-    const slots: TimeSlot[] = [];
-    const dayStart = 7; // 7 AM
-    const dayEnd = 22; // 10 PM
+  // Combine available slots with obligations for timeline view
+  const generateTimelineSlots = (): (TimeSlot & { isObligation?: boolean; title?: string; type?: string })[] => {
+    const slots: (TimeSlot & { isObligation?: boolean; title?: string; type?: string })[] = [];
     
-    // Sort obligations by start time
-    const sortedObligations = [...obligations].sort((a, b) => 
-      a.startTime.localeCompare(b.startTime)
-    );
-
-    let currentHour = dayStart;
-    let currentMinute = 0;
-
-    for (const obligation of sortedObligations) {
+    // Add available slots
+    availableSlots.forEach(slot => {
+      slots.push({
+        ...slot,
+        isObligation: false
+      });
+    });
+    
+    // Add obligation slots
+    obligations.forEach(obligation => {
       const obligationStart = parseTime(obligation.startTime);
       const obligationEnd = parseTime(obligation.endTime);
       
-      // Add available slot before obligation if there's time
-      if (currentHour * 60 + currentMinute < obligationStart.totalMinutes) {
-        const availableMinutes = obligationStart.totalMinutes - (currentHour * 60 + currentMinute);
-        if (availableMinutes >= 15) { // Only show slots of 15+ minutes
-          slots.push({
-            start: formatTime(currentHour, currentMinute),
-            end: formatTime(obligationStart.hour, obligationStart.minute),
-            duration: availableMinutes,
-            available: true
-          });
-        }
-      }
-      
-      // Add the obligation slot
       slots.push({
         start: obligation.startTime,
         end: obligation.endTime,
         duration: obligationEnd.totalMinutes - obligationStart.totalMinutes,
-        available: false
+        available: false,
+        isObligation: true,
+        title: obligation.title,
+        type: obligation.type
       });
-      
-      currentHour = obligationEnd.hour;
-      currentMinute = obligationEnd.minute;
-    }
+    });
     
-    // Add final available slot if there's time left in the day
-    const dayEndMinutes = dayEnd * 60;
-    const currentTotalMinutes = currentHour * 60 + currentMinute;
-    if (currentTotalMinutes < dayEndMinutes) {
-      const remainingMinutes = dayEndMinutes - currentTotalMinutes;
-      if (remainingMinutes >= 15) {
-        slots.push({
-          start: formatTime(currentHour, currentMinute),
-          end: formatTime(dayEnd, 0),
-          duration: remainingMinutes,
-          available: true
-        });
-      }
-    }
-    
-    return slots;
+    // Sort by start time
+    return slots.sort((a, b) => a.start.localeCompare(b.start));
   };
 
   const parseTime = (timeStr: string) => {
@@ -130,8 +96,7 @@ export const ScheduleView = ({
     }
   };
 
-  const timeSlots = generateTimeSlots();
-  const availableSlots = timeSlots.filter(slot => slot.available);
+  const timelineSlots = generateTimelineSlots();
   const totalAvailableTime = availableSlots.reduce((total, slot) => total + slot.duration, 0);
 
   return (
@@ -212,7 +177,7 @@ export const ScheduleView = ({
             Today's Timeline
           </h3>
           <div className="space-y-2">
-            {timeSlots.map((slot, index) => {
+            {timelineSlots.map((slot, index) => {
               // Check if there's a scheduled task in this slot
               const scheduledTask = scheduledSlots.find(scheduled => 
                 scheduled.startTime === slot.start && scheduled.endTime === slot.end
@@ -226,7 +191,9 @@ export const ScheduleView = ({
                       ? "bg-task-primary/10 border-l-task-primary"
                       : slot.available 
                         ? "bg-time-slot border-l-task-success" 
-                        : "bg-muted border-l-muted-foreground"
+                        : slot.isObligation
+                          ? "bg-muted border-l-obligation"
+                          : "bg-muted border-l-muted-foreground"
                   }`}
                 >
                   <div className="flex items-center justify-between">
@@ -255,6 +222,13 @@ export const ScheduleView = ({
                     <p className="text-sm text-muted-foreground mt-1">
                       Available for tasks
                     </p>
+                  ) : slot.isObligation ? (
+                    <div className="flex items-center gap-2 mt-1">
+                      <div className={`w-2 h-2 rounded-full ${getTypeColor(slot.type as Obligation["type"])}`} />
+                      <p className="text-sm font-medium">
+                        {slot.title}
+                      </p>
+                    </div>
                   ) : null}
                 </div>
               );

@@ -34,7 +34,7 @@ export const FocusMode = ({ tasks, onTaskUpdate }: FocusModeProps) => {
   const currentTask = uncompletedTasks[currentTaskIndex];
 
   useEffect(() => {
-    let interval: NodeJS.Timeout;
+    let interval: NodeJS.Timeout | null = null;
     
     if (isActive && startTime) {
       interval = setInterval(() => {
@@ -42,8 +42,21 @@ export const FocusMode = ({ tasks, onTaskUpdate }: FocusModeProps) => {
       }, 1000);
     }
     
-    return () => clearInterval(interval);
+    return () => {
+      if (interval) {
+        clearInterval(interval);
+      }
+    };
   }, [isActive, startTime]);
+
+  // Cleanup timer on unmount
+  useEffect(() => {
+    return () => {
+      setIsActive(false);
+      setTimeSpent(0);
+      setStartTime(null);
+    };
+  }, []);
 
   const startTask = () => {
     setIsActive(true);
@@ -81,9 +94,9 @@ export const FocusMode = ({ tasks, onTaskUpdate }: FocusModeProps) => {
 
   const getEnergyLevelColor = (level: string) => {
     switch (level) {
-      case "high": return "text-red-500";
-      case "medium": return "text-yellow-500";
-      case "low": return "text-green-500";
+      case "high": return "text-task-warning";
+      case "medium": return "text-task-secondary";
+      case "low": return "text-task-success";
       default: return "text-muted-foreground";
     }
   };

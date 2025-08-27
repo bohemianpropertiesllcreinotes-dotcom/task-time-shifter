@@ -95,6 +95,7 @@ const Index = () => {
             onAddObligation={addObligation}
             onRemoveObligation={removeObligation}
             scheduledSlots={scheduledSlots}
+            availableSlots={generateAvailableSlots()}
           />
         </TabsContent>
         
